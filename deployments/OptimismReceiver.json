@@ -1,0 +1,90 @@
+{
+  "address": "0xA1B1338d95786FFC2dC5384A86A3A08dE0359495",
+  "abi": [
+    {
+      "type": "constructor",
+      "stateMutability": "undefined",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "_gateway"
+        },
+        {
+          "type": "address",
+          "name": "_gasService"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "TokensReceived",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "recipient",
+          "indexed": false
+        },
+        {
+          "type": "uint256",
+          "name": "amount",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "gasService",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "gateway",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "receiveTokens",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "bytes32",
+          "name": "commandId"
+        },
+        {
+          "type": "string",
+          "name": "sourceChain"
+        },
+        {
+          "type": "string",
+          "name": "sourceAddress"
+        },
+        {
+          "type": "bytes",
+          "name": "payload"
+        }
+      ],
+      "outputs": []
+    }
+  ]
+}

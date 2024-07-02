@@ -1,5 +1,6 @@
 {
   "rpcUrl": "https://rpc-cosmoshub.keplr.app",
+  "osmosisRpcUrl": "https://rpc.osmosis.zone",
   "chainId": "cosmoshub-4",
   "gasPrice": {
     "amount": "0.025",

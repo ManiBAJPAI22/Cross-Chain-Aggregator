@@ -24,7 +24,8 @@ export class CosmosAggregator {
       username: process.env.NEO4J_USERNAME || "neo4j",
       password: process.env.NEO4J_PASSWORD || "password",
     };
-    this.API_URL = "https://api-osmosis.imperator.co/pools/v2/all?low_liquidity=false";
+    this.API_URL =
+      "https://api-osmosis.imperator.co/pools/v2/all?low_liquidity=false";
     this.STABLECOINS = new Set(["USDC", "USDT", "DAI", "BUSD"]);
   }
 
@@ -155,12 +156,14 @@ export class CosmosAggregator {
     );
     const session = driver.session();
     try {
-      const poolInfos: PoolInfo[] = Object.entries(pools).map(([id, assets]) => ({
-        id,
-        assets,
-        liquidity: this.calculatePoolLiquidity(assets),
-      }));
-  
+      const poolInfos: PoolInfo[] = Object.entries(pools).map(
+        ([id, assets]) => ({
+          id,
+          assets,
+          liquidity: this.calculatePoolLiquidity(assets),
+        })
+      );
+
       const optimalStrategy = await this.findOptimalTradingStrategy(
         session,
         startToken,
@@ -171,14 +174,14 @@ export class CosmosAggregator {
         minLiquidity,
         maxPaths
       );
-  
+
       if (optimalStrategy.paths.length === 0) {
         console.warn(
           `No conversion path found from ${startToken} to ${endToken}`
         );
         return new BigNumber(0);
       }
-  
+
       console.info(
         `Executing order: ${inputAmount.toString()} ${startToken} to ${endToken}`
       );
@@ -188,40 +191,44 @@ export class CosmosAggregator {
           6
         )} ${endToken}`
       );
-  
+
       const swapMsgs: SwapMessage[] = [];
-  
+
       let totalOutput = new BigNumber(0);
-  
+
       for (let i = 0; i < optimalStrategy.paths.length; i++) {
         const { path, poolIds } = optimalStrategy.paths[i];
         const pathAmount = optimalStrategy.amounts[i];
-  
+
         console.info(`\nPath ${i + 1}:`);
         console.info(`Amount: ${pathAmount.toString()} ${startToken}`);
         console.info(`Route: ${path.join(" -> ")}`);
-  
+
         let currentAmount = pathAmount;
         let currentToken = startToken;
-  
+
         for (let j = 0; j < poolIds.length; j++) {
           const poolAssets = pools[poolIds[j]];
           const nextToken = path[j + 1];
-  
+
           const { outputAmount, slippage } = this.simulateSwap(
             poolAssets,
             currentToken,
             nextToken,
             currentAmount
           );
-  
+
           console.info(
-            `Swap in pool ${poolIds[j]}: ${currentAmount.toString()} ${currentToken} -> ${outputAmount.toFixed(6)} ${nextToken}`
+            `Swap in pool ${
+              poolIds[j]
+            }: ${currentAmount.toString()} ${currentToken} -> ${outputAmount.toFixed(
+              6
+            )} ${nextToken}`
           );
           console.info(
             `Slippage for this hop: ${slippage.multipliedBy(100).toFixed(2)}%`
           );
-  
+
           swapMsgs.push({
             sender,
             routes: [
@@ -239,29 +246,29 @@ export class CosmosAggregator {
             },
             tokenOutMinAmount: outputAmount.multipliedBy(0.99).toFixed(0), // 1% slippage tolerance
           });
-  
+
           currentAmount = outputAmount;
           currentToken = nextToken;
         }
-  
+
         console.info(
           `Path ${i + 1} output: ${currentAmount.toFixed(6)} ${endToken}`
         );
         totalOutput = totalOutput.plus(currentAmount);
       }
-  
+
       // Encode swap messages
       const encodedMsgs: EncodeObject[] = swapMsgs.map(this.encodeSwapMessage);
-  
+
       // Execute the swap on Osmosis
       const fee = {
         amount: [{ denom: "uosmo", amount: "5000" }],
         gas: "200000",
       };
-  
+
       const txResult = await client.signAndBroadcast(sender, encodedMsgs, fee);
       console.info(`Transaction hash: ${txResult.transactionHash}`);
-  
+
       return totalOutput;
     } catch (error) {
       console.error(`Failed to execute order: ${error}`);
@@ -296,14 +303,17 @@ export class CosmosAggregator {
         endToken,
         inputAmount
       );
-      const effectiveExchangeRate = directPath.outputAmount.dividedBy(inputAmount);
+      const effectiveExchangeRate =
+        directPath.outputAmount.dividedBy(inputAmount);
       return {
         paths: [
           {
             path: [startToken, endToken],
             poolIds: [directPool.id],
             totalSlippage: directPath.slippage,
-            liquidityFactors: [1 - 1 / (1 + directPool.liquidity / minLiquidity)],
+            liquidityFactors: [
+              1 - 1 / (1 + directPool.liquidity / minLiquidity),
+            ],
             expectedOutput: directPath.outputAmount,
             effectiveExchangeRate: effectiveExchangeRate,
           },
@@ -405,9 +415,9 @@ export class CosmosAggregator {
             const newAmounts = [...amounts];
             newAmounts[j] = newAmounts[j].minus(step);
             newAmounts[k] = newAmounts[k].plus(step);
-  
+
             const newTotalOutput = this.calculateTotalOutput(paths, newAmounts);
-  
+
             if (newTotalOutput.isGreaterThan(bestTotalOutput)) {
               amounts = newAmounts;
               bestTotalOutput = newTotalOutput;
@@ -439,7 +449,9 @@ export class CosmosAggregator {
     effectiveExchangeRate: BigNumber;
   } {
     const inputAsset = poolAssets.find((asset) => asset.symbol === inputToken);
-    const outputAsset = poolAssets.find((asset) => asset.symbol === outputToken);
+    const outputAsset = poolAssets.find(
+      (asset) => asset.symbol === outputToken
+    );
 
     if (!inputAsset || !outputAsset) {
       throw new Error(`Input or output token not found in pool`);
@@ -554,9 +566,13 @@ export class CosmosAggregator {
     await this.importDataToNeo4j(driver, pools);
 
     // Generate a wallet
-    const wallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "osmo" });
+    const wallet = await DirectSecp256k1HdWallet.generate(12, {
+      prefix: "osmo",
+    });
     const [firstAccount] = await wallet.getAccounts();
-    console.info(`\nGenerated simulated wallet address: ${firstAccount.address}`);
+    console.info(
+      `\nGenerated simulated wallet address: ${firstAccount.address}`
+    );
     console.info(
       "This is a simulated wallet. In a real scenario, you would need to fund this wallet with tokens."
     );

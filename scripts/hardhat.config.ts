@@ -7,17 +7,17 @@ dotenv.config();
 const config: HardhatUserConfig = {
   solidity: "0.8.24",
   networks: {
-    optimism: {
-      url: process.env.OPTIMISM_RPC_URL || "",
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+    "op-sepolia": {
+      url: "https://sepolia.optimism.io",
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY!],
+      chainId: 11155420
     },
   },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts"
-  }
+  etherscan: {
+    apiKey: {
+      "op-sepolia": process.env.OPTIMISM_ETHERSCAN_API_KEY!
+    },
+  },
 };
 
 export default config;

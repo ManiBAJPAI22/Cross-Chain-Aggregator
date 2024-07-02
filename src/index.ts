@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import { ethers } from "ethers";
 import { SigningStargateClient } from "@cosmjs/stargate";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { AxelarQueryAPI, Environment } from "@axelar-network/axelarjs-sdk";
 import { CosmosAggregator } from "./cosmos/cosmos";
 import { OptimismAggregator } from "./optimism/optimism";
@@ -12,9 +11,10 @@ import { CosmosWallet } from "./cosmos/wallet";
 import { OptimismWallet } from "./optimism/wallet";
 import neo4j from "neo4j-driver";
 import axios from "axios";
-const cosmosConfig = require("../../config/cosmos.json");
-const optimismConfig = require("../../config/optimism.json");
-const axelarConfig = require("../../config/axelar.json");
+
+const cosmosConfig = require("../config/cosmos.json");
+const optimismConfig = require("../config/optimism.json");
+const axelarConfig = require("../config/axelar.json");
 
 dotenv.config();
 
@@ -27,82 +27,136 @@ async function main() {
   console.log("Connected to Neo4j database");
 
   // Cosmos setup
-  const cosmosWallet = new CosmosWallet();
-  await cosmosWallet.initialize(
-    process.env.COSMOS_MNEMONIC!,
-    cosmosConfig.rpcUrl
-  );
-  const cosmosClient = await SigningStargateClient.connectWithSigner(
-    cosmosConfig.rpcUrl,
-    await cosmosWallet.getWallet()
-  );
-  const cosmosAggregator = new CosmosAggregator();
-  console.log("Cosmos setup complete");
+  let cosmosWallet: CosmosWallet;
+  let cosmosClient: SigningStargateClient;
+  let cosmosAggregator: CosmosAggregator;
+
+  try {
+    cosmosWallet = new CosmosWallet();
+    await cosmosWallet.initialize(
+      process.env.COSMOS_MNEMONIC!,
+      cosmosConfig.rpcUrl
+    );
+    cosmosClient = await SigningStargateClient.connectWithSigner(
+      cosmosConfig.rpcUrl,
+      await cosmosWallet.getWallet()
+    );
+    cosmosAggregator = new CosmosAggregator();
+    console.log("Cosmos setup complete");
+  } catch (error) {
+    console.error("Failed to set up Cosmos:", error);
+    return;
+  }
+
+  // Osmosis setup
+  let osmosisWallet: CosmosWallet;
+  let osmosisClient: SigningStargateClient;
+
+  try {
+    osmosisWallet = new CosmosWallet();
+    await osmosisWallet.initialize(
+      process.env.COSMOS_MNEMONIC!,
+      cosmosConfig.osmosisRpcUrl
+    );
+    osmosisClient = await SigningStargateClient.connectWithSigner(
+      cosmosConfig.osmosisRpcUrl,
+      await osmosisWallet.getWallet()
+    );
+    console.log("Osmosis setup complete");
+  } catch (error) {
+    console.error("Failed to set up Osmosis:", error);
+    return;
+  }
 
   // Optimism setup
-  const optimismProvider = new ethers.JsonRpcProvider(optimismConfig.rpcUrl);
-  const optimismWallet = new OptimismWallet();
-  await optimismWallet.initialize(
-    process.env.DEPLOYER_PRIVATE_KEY!,
-    optimismConfig.rpcUrl
-  );
-  const optimismAggregator = new OptimismAggregator(
-    optimismConfig.rpcUrl,
-    optimismConfig.subgraphUrl,
-    optimismWallet
-  );
-  console.log("Optimism setup complete");
+  let optimismWallet: OptimismWallet;
+  let optimismAggregator: OptimismAggregator;
+
+  try {
+    optimismWallet = new OptimismWallet();
+    await optimismWallet.initialize(
+      process.env.DEPLOYER_PRIVATE_KEY!,
+      optimismConfig.rpcUrl
+    );
+    optimismAggregator = new OptimismAggregator(
+      optimismConfig.rpcUrl,
+      optimismConfig.subgraphUrl,
+      optimismWallet
+    );
+    console.log("Optimism setup complete");
+  } catch (error) {
+    console.error("Failed to set up Optimism:", error);
+    return;
+  }
 
   // Axelar setup
-  const axelarQuery = new AxelarQueryAPI({
-    environment: axelarConfig.environment as Environment,
-  });
-  const axelarBridge = new AxelarBridge();
-  console.log("Axelar setup complete");
+  try {
+    const axelarQuery = new AxelarQueryAPI({
+      environment: axelarConfig.environment as Environment,
+    });
+    const axelarBridge = new AxelarBridge();
+    console.log("Axelar setup complete");
+  } catch (error) {
+    console.error("Failed to set up Axelar:", error);
+    return;
+  }
 
   // Cross-Chain setup
-  const cosmosCrossChain = new CosmosCrossChain(
-    axelarConfig.environment as Environment
-  );
-  await cosmosCrossChain.initialize(
-    process.env.COSMOS_MNEMONIC!,
-    cosmosConfig.rpcUrl
-  );
+  let cosmosCrossChain: CosmosCrossChain;
+  let optimismCrossChain: OptimismCrossChain;
 
-  const optimismCrossChain = new OptimismCrossChain(
-    optimismConfig.rpcUrl,
-    optimismConfig.subgraphUrl,
-    axelarConfig.environment as Environment
-  );
-  await optimismCrossChain.initialize(
-    process.env.DEPLOYER_PRIVATE_KEY!,
-    optimismConfig.rpcUrl
-  );
-  console.log("Cross-chain setup complete");
+  try {
+    cosmosCrossChain = new CosmosCrossChain(
+      axelarConfig.environment as Environment
+    );
+    await cosmosCrossChain.initialize(
+      process.env.COSMOS_MNEMONIC!,
+      cosmosConfig.rpcUrl
+    );
+
+    optimismCrossChain = new OptimismCrossChain(
+      optimismConfig.rpcUrl,
+      optimismConfig.subgraphUrl,
+      axelarConfig.environment as Environment
+    );
+    await optimismCrossChain.initialize(
+      process.env.DEPLOYER_PRIVATE_KEY!,
+      optimismConfig.rpcUrl
+    );
+    console.log("Cross-chain setup complete");
+  } catch (error) {
+    console.error("Failed to set up cross-chain functionality:", error);
+    return;
+  }
 
   // Example: Fetch and store pool data
-  const cosmosPools = await cosmosAggregator.fetchPoolData();
-  const optimismPools = await optimismAggregator.fetchPoolData();
-
-  const neo4jSession = neo4jDriver.session();
   try {
-    await cosmosAggregator.importDataToNeo4j(neo4jDriver, cosmosPools!);
-    console.log("Cosmos pool data imported to Neo4j");
+    const cosmosPools = await cosmosAggregator.fetchPoolData();
+    const optimismPools = await optimismAggregator.fetchPoolData();
 
-    // Assume similar method exists for Optimism
-    // await optimismAggregator.importDataToNeo4j(neo4jDriver, optimismPools!);
-    // console.log("Optimism pool data imported to Neo4j");
-  } finally {
-    await neo4jSession.close();
+    const neo4jSession = neo4jDriver.session();
+    try {
+      await cosmosAggregator.importDataToNeo4j(neo4jDriver, cosmosPools!);
+      console.log("Cosmos pool data imported to Neo4j");
+
+      // Assume similar method exists for Optimism
+      // await optimismAggregator.importDataToNeo4j(neo4jDriver, optimismPools!);
+      // console.log("Optimism pool data imported to Neo4j");
+    } finally {
+      await neo4jSession.close();
+    }
+  } catch (error) {
+    console.error("Failed to fetch and store pool data:", error);
+    return;
   }
 
   // Example: Cross-chain transfer from Cosmos to Optimism
-  const sourceToken = "ATOM";
-  const amount = "1"; // 1 ATOM
-  const destinationChain = "optimism";
-  const destinationAddress = await optimismWallet.getAddress();
-
   try {
+    const sourceToken = "ATOM";
+    const amount = "1"; // 1 ATOM
+    const destinationChain = "optimism";
+    const destinationAddress = await optimismWallet.getAddress();
+
     const result = await cosmosCrossChain.swapAndBridge(
       sourceToken,
       amount,
@@ -125,21 +179,21 @@ async function main() {
   }
 
   // Example: Query Optimism subgraph
-  const subgraphQuery = `
-        {
-            pools(first: 5, orderBy: totalValueLockedUSD, orderDirection: desc) {
-                id
-                token0 {
-                    symbol
-                }
-                token1 {
-                    symbol
-                }
-                totalValueLockedUSD
-            }
-        }
-    `;
   try {
+    const subgraphQuery = `
+      {
+        pools(first: 5, orderBy: totalValueLockedUSD, orderDirection: desc) {
+          id
+          token0 {
+            symbol
+          }
+          token1 {
+            symbol
+          }
+          totalValueLockedUSD
+        }
+      }
+    `;
     const subgraphResponse = await axios.post(optimismConfig.subgraphUrl, {
       query: subgraphQuery,
     });
