@@ -1,0 +1,41 @@
+{
+  "name": "cross-chain-integration",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManiBAJPAI22/cross-chain-integration.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ManiBAJPAI22/cross-chain-integration/issues"
+  },
+  "homepage": "https://github.com/ManiBAJPAI22/cross-chain-integration#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.6",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^20.14.9",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1",
+    "hardhat": "^2.22.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^5.9.0",
+    "@axelar-network/axelarjs-sdk": "^0.16.2",
+    "@cosmjs/crypto": "^0.32.4",
+    "@cosmjs/encoding": "^0.32.4",
+    "@cosmjs/proto-signing": "^0.32.4",
+    "@cosmjs/stargate": "^0.32.4",
+    "bignumber.js": "^9.1.2",
+    "neo4j-driver": "^5.22.0",
+    "solc": "^0.8.26"
+  }
+}

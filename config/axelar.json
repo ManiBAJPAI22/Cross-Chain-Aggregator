@@ -1,0 +1,27 @@
+{
+  "environment": "testnet",
+  "gasReceiver": {
+    "ethereum": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "optimism": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "cosmos": "cosmos1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8e9nj0g"
+  },
+  "gateway": {
+    "ethereum": "0xBC6fcce7c5487d43830a219CA6E7B83238B41e71",
+    "optimism": "0xe432150cce91c13a887f7D836923d5597adD8E31",
+    "cosmos": "cosmos1jv65s3grqf6v6jl3dp4t6c9t9rk99cd8e9nj0g"
+  },
+  "tokenAddresses": {
+    "ethereum": {
+      "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+    },
+    "optimism": {
+      "USDC": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607"
+    },
+    "cosmos": {
+      "USDC": "uusdc"
+    }
+  },
+  "axelarApiKey": "YOUR_AXELAR_API_KEY",
+  "gasLimit": 1000000,
+  "gasMultiplier": "1.1"
+}

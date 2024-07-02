@@ -1,0 +1,26 @@
+{
+  "rpcUrl": "https://rpc-cosmoshub.keplr.app",
+  "chainId": "cosmoshub-4",
+  "gasPrice": {
+    "amount": "0.025",
+    "denom": "uatom"
+  },
+  "prefix": "cosmos",
+  "coinType": 118,
+  "tokens": {
+    "ATOM": {
+      "denom": "uatom",
+      "decimals": 6
+    },
+    "OSMO": {
+      "denom": "uosmo",
+      "decimals": 6
+    }
+  },
+  "pools": {
+    "ATOM-OSMO": "1",
+    "ATOM-USDC": "2"
+  },
+  "minLiquidity": 1000,
+  "maxPaths": 3
+}

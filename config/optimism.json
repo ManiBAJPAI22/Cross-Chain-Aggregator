@@ -1,0 +1,24 @@
+{
+  "rpcUrl": "https://mainnet.optimism.io",
+  "chainId": 10,
+  "gasPrice": {
+    "maxFeePerGas": "0.1",
+    "maxPriorityFeePerGas": "0.01"
+  },
+  "tokens": {
+    "ETH": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "decimals": 18
+    },
+    "USDC": {
+      "address": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+      "decimals": 6
+    }
+  },
+  "pools": {
+    "ETH-USDC": "0x85149247691df622eaF1a8Bd0CaFd40BC45154a9"
+  },
+  "minLiquidity": 1000,
+  "maxPaths": 3,
+  "subgraphUrl": "https://gateway-arbitrum.network.thegraph.com/api/992cec941da1b5b9616a27229fca25aa/subgraphs/id/Hc3vTLxWmtyrn59t2Yv3MiXJVxjfNyZi41iKE3rXXHMf"
+}
