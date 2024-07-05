@@ -9,26 +9,30 @@ export class CosmosCrossChain {
   private axelarBridge: AxelarBridge;
   private wallet: CosmosWallet;
 
-  constructor(axelarEnvironment: Environment) {
+  constructor(axelarEnvironment: Environment, chainId: string) {
     this.cosmosAggregator = new CosmosAggregator();
-    this.axelarBridge = new AxelarBridge();
-    this.wallet = new CosmosWallet();
+    this.axelarBridge = new AxelarBridge(axelarEnvironment);
+    this.wallet = new CosmosWallet(chainId);
   }
 
-  async initialize(mnemonic: string, rpcUrl: string) {
+  async initialize(rpcUrl: string, mnemonic?: string) {
     try {
-      await this.wallet.initialize(mnemonic, rpcUrl);
+      console.log("Initializing Osmosis wallet for cross-chain operations...");
+      await this.wallet.initialize(rpcUrl, mnemonic);
+      console.log("Osmosis wallet initialized successfully for cross-chain operations");
     } catch (error) {
-      console.error('Failed to initialize Cosmos wallet:', error);
+      console.error('Failed to initialize Osmosis wallet for cross-chain operations:', error);
       throw error;
     }
   }
 
   async swapAndBridge(sourceToken: string, amount: string, destinationChain: string, destinationAddress: string) {
     try {
+      console.log(`Initiating swap and bridge: ${amount} ${sourceToken} to ${destinationChain}`);
       const pools = await this.cosmosAggregator.fetchPoolData();
       if (!pools) throw new Error("Failed to fetch pool data");
 
+      console.log("Executing order...");
       const usdcAmount = await this.cosmosAggregator.executeOrder(
         await this.wallet.getSigningClient(),
         pools,
@@ -37,9 +41,11 @@ export class CosmosCrossChain {
         new BigNumber(amount),
         await this.wallet.getAddress()
       );
+      console.log(`Order executed. USDC amount: ${usdcAmount}`);
 
+      console.log("Preparing transfer messages...");
       const preparedMessage = await this.axelarBridge.prepareTransferMessages(
-        'cosmos',
+        'osmosis',
         destinationChain,
         'USDC',
         usdcAmount.toString(),
@@ -47,32 +53,44 @@ export class CosmosCrossChain {
         await this.wallet.getAddress(),
         destinationAddress
       );
+      console.log("Transfer messages prepared");
 
-      return this.axelarBridge.executeTransfer(preparedMessage);
+      console.log("Executing transfer...");
+      const result = await this.axelarBridge.executeTransfer(preparedMessage);
+      console.log("Transfer executed");
+
+      return result;
     } catch (error) {
       console.error('Error in swapAndBridge:', error);
       throw error;
     }
   }
-
-  async receiveAndSwap(sourceChain: string, usdcAmount: string, destinationToken: string) {
+  async receiveAndSwap(
+    sourceChain: string,
+    usdcAmount: string,
+    destinationToken: string
+  ) {
     try {
+      console.log(
+        `Initiating receive and swap: ${usdcAmount} USDC from ${sourceChain} to ${destinationToken}`
+      );
       const pools = await this.cosmosAggregator.fetchPoolData();
       if (!pools) throw new Error("Failed to fetch pool data");
 
-      // Assume USDC has been received via Axelar
+      console.log("Executing order...");
       const swapResult = await this.cosmosAggregator.executeOrder(
         await this.wallet.getSigningClient(),
         pools,
-        'USDC',
+        "USDC",
         destinationToken,
         new BigNumber(usdcAmount),
         await this.wallet.getAddress()
       );
+      console.log("Order executed");
 
       return swapResult;
     } catch (error) {
-      console.error('Error in receiveAndSwap:', error);
+      console.error("Error in receiveAndSwap:", error);
       throw error;
     }
   }

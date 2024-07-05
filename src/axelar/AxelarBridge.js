@@ -8,73 +8,71 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AxelarBridge = void 0;
 const axelarjs_sdk_1 = require("@axelar-network/axelarjs-sdk");
-const config_1 = __importDefault(require("./config"));
 class AxelarBridge {
-    constructor() {
-        this.axelarQuery = new axelarjs_sdk_1.AxelarQueryAPI({
-            environment: config_1.default.environment
-        });
+    constructor(environment) {
+        this.axelarQuery = new axelarjs_sdk_1.AxelarQueryAPI({ environment });
     }
-    prepareTransferMessages(sourceChain, destChain, asset, amount, recipient, sourceContractAddress, destinationContractAddress) {
+    prepareTransferMessages(sourceChain, destinationChain, asset, amount, recipientAddress, senderAddress, feePayerAddress) {
         return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const sourceEvmChain = this.getEvmChain(sourceChain);
-                const destEvmChain = this.getEvmChain(destChain);
-                const gasFee = yield this.axelarQuery.estimateGasFee(sourceEvmChain, destEvmChain, asset, config_1.default.axelarSettings.gasLimit, config_1.default.axelarSettings.gasMultiplier);
-                console.log(`Estimated transfer fee:`, gasFee);
-                const sourceTokenAddress = this.getTokenAddress(sourceChain, asset);
-                const destTokenAddress = this.getTokenAddress(destChain, asset);
-                const sourceGateway = config_1.default.gatewayAddresses[sourceChain] || '';
-                const destGateway = config_1.default.gatewayAddresses[destChain] || '';
-                return {
-                    sourceChain,
-                    destinationChain: destChain,
-                    asset,
-                    amount,
-                    recipient,
-                    gasFee,
-                    sourceContractAddress,
-                    destinationContractAddress,
-                    sourceTokenAddress,
-                    destTokenAddress,
-                    sourceGateway,
-                    destGateway
-                };
-            }
-            catch (error) {
-                console.error('Error preparing transfer messages:', error);
-                throw error;
-            }
+            const sourceChainId = this.getChainId(sourceChain);
+            const destinationChainId = this.getChainId(destinationChain);
+            // Implement the logic to prepare transfer messages
+            // This is a placeholder and should be replaced with actual implementation
+            console.log(`Preparing transfer from ${sourceChainId} to ${destinationChainId}`);
+            console.log(`Asset: ${asset}, Amount: ${amount}`);
+            console.log(`Recipient: ${recipientAddress}, Sender: ${senderAddress}, Fee Payer: ${feePayerAddress}`);
+            return {
+                sourceChainId,
+                destinationChainId,
+                asset,
+                amount,
+                recipientAddress,
+                senderAddress,
+                feePayerAddress,
+            };
         });
-    }
-    getTokenAddress(chain, asset) {
-        const chainTokens = config_1.default.tokenAddresses[chain];
-        if (chainTokens && typeof chainTokens === 'object' && asset in chainTokens) {
-            return chainTokens[asset];
-        }
-        throw new Error(`Token ${asset} not found for chain ${chain}`);
     }
     executeTransfer(preparedMessage) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("Executing cross-chain transfer:", preparedMessage);
-            const gasReceiverAddress = config_1.default.gasReceiver[preparedMessage.sourceChain] || '';
-            console.log("Gas receiver address:", gasReceiverAddress);
-            // Placeholder implementation
-            return true;
+            // Implement the logic to execute the transfer
+            // This is a placeholder and should be replaced with actual implementation
+            console.log("Executing transfer with prepared message:", preparedMessage);
+            return {
+                success: true,
+                txHash: "0x..." + Math.random().toString(36).substring(7),
+            };
         });
     }
-    getEvmChain(chainName) {
-        const chain = config_1.default.supportedChains[chainName.toLowerCase()];
-        if (!chain) {
-            throw new Error(`Unsupported chain: ${chainName}`);
+    getChainId(chain) {
+        switch (chain.toLowerCase()) {
+            case "ethereum":
+                return "ethereum";
+            case "binance":
+            case "bsc":
+                return "binance";
+            case "avalanche":
+                return "avalanche";
+            case "fantom":
+                return "fantom";
+            case "polygon":
+                return "polygon";
+            case "moonbeam":
+                return "moonbeam";
+            case "arbitrum":
+                return "arbitrum";
+            case "optimism":
+                return "optimism";
+            case "cosmos":
+            case "cosmoshub":
+                return "cosmos";
+            case "osmosis":
+                return "osmosis";
+            default:
+                throw new Error(`Unsupported chain: ${chain}`);
         }
-        return chain;
     }
 }
 exports.AxelarBridge = AxelarBridge;

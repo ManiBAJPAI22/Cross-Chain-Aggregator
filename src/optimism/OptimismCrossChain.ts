@@ -16,7 +16,7 @@ export class OptimismCrossChain {
   ) {
     this.wallet = new OptimismWallet();
     this.optimismAggregator = new OptimismAggregator(rpcUrl, subgraphUrl, this.wallet);
-    this.axelarBridge = new AxelarBridge();
+    this.axelarBridge = new AxelarBridge(axelarEnvironment);
   }
 
   async initialize(privateKey: string, rpcUrl: string) {

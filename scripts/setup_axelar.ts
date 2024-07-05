@@ -2,7 +2,7 @@ import { AxelarBridge } from "../src/axelar/AxelarBridge";
 import axelarConfig from "../src/axelar/config";
 
 async function main() {
-  const axelarBridge = new AxelarBridge();
+  const axelarBridge = new AxelarBridge(axelarConfig.environment);
 
   // Setup Axelar for your specific chains
   // This is a placeholder and will depend on your specific requirements

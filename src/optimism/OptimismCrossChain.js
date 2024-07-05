@@ -21,7 +21,7 @@ class OptimismCrossChain {
     constructor(rpcUrl, subgraphUrl, axelarEnvironment) {
         this.wallet = new wallet_1.OptimismWallet();
         this.optimismAggregator = new optimism_1.OptimismAggregator(rpcUrl, subgraphUrl, this.wallet);
-        this.axelarBridge = new AxelarBridge_1.AxelarBridge();
+        this.axelarBridge = new AxelarBridge_1.AxelarBridge(axelarEnvironment);
     }
     initialize(privateKey, rpcUrl) {
         return __awaiter(this, void 0, void 0, function* () {

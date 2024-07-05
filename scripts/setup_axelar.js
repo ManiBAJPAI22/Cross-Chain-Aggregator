@@ -16,7 +16,7 @@ const AxelarBridge_1 = require("../src/axelar/AxelarBridge");
 const config_1 = __importDefault(require("../src/axelar/config"));
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        const axelarBridge = new AxelarBridge_1.AxelarBridge();
+        const axelarBridge = new AxelarBridge_1.AxelarBridge(config_1.default.environment);
         // Setup Axelar for your specific chains
         // This is a placeholder and will depend on your specific requirements
         console.log("Axelar environment:", config_1.default.environment);
