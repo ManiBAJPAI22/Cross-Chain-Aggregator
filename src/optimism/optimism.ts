@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 import axios from "axios";
 import BigNumber from "bignumber.js";
+import dotenv from "dotenv";
+import { OptimismWallet } from "./wallet";
 import neo4j, { Driver, Session, Transaction } from "neo4j-driver";
-import dotenv from 'dotenv';
-import { OptimismWallet } from './wallet';
 
 dotenv.config();
 
@@ -54,8 +54,6 @@ export class OptimismAggregator {
     this.SUBGRAPH_URL = subgraphUrl;
     this.wallet = wallet;
   }
-
-  
 
   async fetchPoolData(): Promise<PoolData | null> {
     const query = `
@@ -130,12 +128,14 @@ export class OptimismAggregator {
     const session = driver.session();
 
     try {
-      const poolInfos: PoolInfo[] = Object.entries(pools).map(([id, assets]) => ({
-        id,
-        assets,
-        liquidity: this.calculatePoolLiquidity(assets),
-        feeTier: assets[0].feeTier,
-      }));
+      const poolInfos: PoolInfo[] = Object.entries(pools).map(
+        ([id, assets]) => ({
+          id,
+          assets,
+          liquidity: this.calculatePoolLiquidity(assets),
+          feeTier: assets[0].feeTier,
+        })
+      );
 
       const optimalStrategy = await this.findOptimalTradingStrategy(
         session,
@@ -149,13 +149,21 @@ export class OptimismAggregator {
       );
 
       if (optimalStrategy.paths.length === 0) {
-        console.warn(`No conversion path found from ${startToken} to ${endToken}`);
+        console.warn(
+          `No conversion path found from ${startToken} to ${endToken}`
+        );
         return new BigNumber(0);
       }
 
-      console.info(`Executing order: ${inputAmount.toString()} ${startToken} to ${endToken}`);
+      console.info(
+        `Executing order: ${inputAmount.toString()} ${startToken} to ${endToken}`
+      );
       console.info(`Number of paths: ${optimalStrategy.paths.length}`);
-      console.info(`Estimated total output: ${optimalStrategy.totalExpectedOutput.toFixed(6)} ${endToken}`);
+      console.info(
+        `Estimated total output: ${optimalStrategy.totalExpectedOutput.toFixed(
+          6
+        )} ${endToken}`
+      );
 
       // Here you would implement the actual swap execution logic
       // This is a placeholder that assumes the swap was successful
@@ -166,11 +174,67 @@ export class OptimismAggregator {
     }
   }
 
-  async prepareSwapTransaction(sourceToken: string, destToken: string, amount: string): Promise<ethers.ContractTransaction> {
+  async prepareSwapTransaction(
+    sourceToken: string,
+    destToken: string,
+    amount: string
+  ): Promise<ethers.ContractTransaction> {
     // This is a placeholder implementation
     // In a real scenario, you would encode the actual swap function call for your DEX contract
-    const dexContract = new ethers.Contract("DEX_CONTRACT_ADDRESS", ["function swap(address,address,uint256)"], this.provider);
-    return await dexContract.swap.populateTransaction(sourceToken, destToken, ethers.parseUnits(amount, 18));
+    const dexContract = new ethers.Contract(
+      "DEX_CONTRACT_ADDRESS",
+      ["function swap(address,address,uint256)"],
+      this.provider
+    );
+    return await dexContract.swap.populateTransaction(
+      sourceToken,
+      destToken,
+      ethers.parseUnits(amount, 18)
+    );
+  }
+
+  async importDataToNeo4j(driver: Driver, pools: PoolData): Promise<void> {
+    if (!pools) {
+      console.error("No data to import");
+      return;
+    }
+    const session = driver.session();
+    try {
+      await session.writeTransaction((tx) => this.clearDatabase(tx));
+      for (const [poolId, poolAssets] of Object.entries(pools)) {
+        await session.writeTransaction((tx) =>
+          this.createPoolRelationships(tx, poolId, poolAssets)
+        );
+      }
+      console.info("Optimism data import completed successfully.");
+    } catch (error) {
+      console.error(`Failed to import Optimism data to Neo4j: ${error}`);
+    } finally {
+      await session.close();
+    }
+  }
+
+  private clearDatabase(tx: Transaction): void {
+    tx.run("MATCH (n:OptimismPool) DETACH DELETE n");
+  }
+
+  private createPoolRelationships(
+    tx: Transaction,
+    poolId: string,
+    poolAssets: PoolAsset[]
+  ): void {
+    const query = `
+      MERGE (p:OptimismPool {id: $poolId})
+      WITH p
+      UNWIND $assets AS asset
+      MERGE (t:Token {symbol: asset.symbol})
+      MERGE (p)-[r:CONTAINS]->(t)
+      SET r.address = asset.address,
+          r.amount = asset.amount,
+          r.feeTier = asset.feeTier
+    `;
+
+    tx.run(query, { poolId, assets: poolAssets });
   }
 
   private calculatePoolLiquidity(assets: PoolAsset[]): number {
@@ -202,14 +266,17 @@ export class OptimismAggregator {
         endToken,
         inputAmount
       );
-      const effectiveExchangeRate = directPath.outputAmount.dividedBy(inputAmount);
+      const effectiveExchangeRate =
+        directPath.outputAmount.dividedBy(inputAmount);
       return {
         paths: [
           {
             path: [startToken, endToken],
             poolIds: [directPool.id],
             totalSlippage: directPath.slippage,
-            liquidityFactors: [1 - 1 / (1 + directPool.liquidity / minLiquidity)],
+            liquidityFactors: [
+              1 - 1 / (1 + directPool.liquidity / minLiquidity),
+            ],
             expectedOutput: directPath.outputAmount,
             effectiveExchangeRate: effectiveExchangeRate,
           },
@@ -246,15 +313,15 @@ export class OptimismAggregator {
     const result = await session.readTransaction((tx) =>
       tx.run(
         `
-          MATCH path = (start:Token {symbol: $start_symbol})-[:POOL*1..${maxDepth}]->(end:Token {symbol: $end_symbol})
-          WHERE ALL(rel IN relationships(path) WHERE rel.liquidity >= $min_liquidity)
+          MATCH path = (start:Token {symbol: $start_symbol})-[:CONTAINS*1..${maxDepth}]->(end:Token {symbol: $end_symbol})
+          WHERE ALL(rel IN relationships(path) WHERE rel.amount >= $min_liquidity)
           WITH path,
                [rel in relationships(path) | rel.id] AS pool_ids,
                [node in nodes(path) | node.symbol] AS symbols,
                [rel in relationships(path) | {
                   amount: rel.amount,
-                  liquidity: rel.liquidity,
-                  liquidityFactor: 1 - (1 / (1 + rel.liquidity / $min_liquidity))
+                  liquidity: toFloat(rel.amount),
+                  liquidityFactor: 1 - (1 / (1 + toFloat(rel.amount) / $min_liquidity))
                }] AS pool_data
           WITH *, range(0, size(pool_data)-1) AS indexes
           UNWIND indexes AS i
@@ -262,7 +329,7 @@ export class OptimismAggregator {
           WITH *, 
                CASE 
                  WHEN initial_amount IS NOT NULL 
-                 THEN round(1000000 * initial_amount * 0.997 * toFloat(current_pool.liquidity) / (toFloat(current_pool.amount) + initial_amount * 0.997)) / 1000000.0
+                 THEN round(1000000 * initial_amount * 0.997 * current_pool.liquidity / (toFloat(current_pool.amount) + initial_amount * 0.997)) / 1000000.0
                  ELSE null
                END AS output_amount
           WITH path, pool_ids, symbols, 
@@ -273,7 +340,7 @@ export class OptimismAggregator {
           RETURN path, pool_ids, symbols, total_slippage, liquidity_factors, expected_output, effective_exchange_rate
           ORDER BY effective_exchange_rate DESC
           LIMIT toInteger($max_paths)
-          `,
+        `,
         {
           start_symbol: startToken,
           end_symbol: endToken,
@@ -290,11 +357,16 @@ export class OptimismAggregator {
       totalSlippage: new BigNumber(record.get("total_slippage") as number),
       liquidityFactors: record.get("liquidity_factors") as number[],
       expectedOutput: new BigNumber(record.get("expected_output") as number),
-      effectiveExchangeRate: new BigNumber(record.get("effective_exchange_rate") as number),
+      effectiveExchangeRate: new BigNumber(
+        record.get("effective_exchange_rate") as number
+      ),
     }));
   }
 
-  private optimizeTradeSplit(paths: PathResult[], totalInputAmount: BigNumber): SplitTrade {
+  private optimizeTradeSplit(
+    paths: PathResult[],
+    totalInputAmount: BigNumber
+  ): SplitTrade {
     // Start with equal split
     let amounts = paths.map(() => totalInputAmount.dividedBy(paths.length));
     let bestTotalOutput = this.calculateTotalOutput(paths, amounts);
@@ -340,7 +412,9 @@ export class OptimismAggregator {
     effectiveExchangeRate: BigNumber;
   } {
     const inputAsset = poolAssets.find((asset) => asset.symbol === inputToken);
-    const outputAsset = poolAssets.find((asset) => asset.symbol === outputToken);
+    const outputAsset = poolAssets.find(
+      (asset) => asset.symbol === outputToken
+    );
 
     if (!inputAsset || !outputAsset) {
       throw new Error(`Input or output token not found in pool`);
@@ -372,7 +446,10 @@ export class OptimismAggregator {
     };
   }
 
-  private calculateTotalOutput(paths: PathResult[], amounts: BigNumber[]): BigNumber {
+  private calculateTotalOutput(
+    paths: PathResult[],
+    amounts: BigNumber[]
+  ): BigNumber {
     return paths.reduce((total, path, index) => {
       const inputAmount = amounts[index];
       const outputAmount = path.expectedOutput
@@ -382,3 +459,6 @@ export class OptimismAggregator {
     }, new BigNumber(0));
   }
 }
+
+// Export the OptimismAggregator class
+export default OptimismAggregator;

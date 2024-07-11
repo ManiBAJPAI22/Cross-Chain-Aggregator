@@ -10,6 +10,7 @@ import { CosmosWallet } from "./cosmos/wallet";
 import { OptimismWallet } from "./optimism/wallet";
 import neo4j from "neo4j-driver";
 import axios from "axios";
+import BigNumber from "bignumber.js";
 
 const cosmosConfig = require("../config/cosmos.json");
 const optimismConfig = require("../config/optimism.json");
@@ -98,14 +99,7 @@ async function main() {
     const osmosisBalance = await osmosisWallet.getBalance();
     console.log("Osmosis balance:", osmosisBalance, "uosmo");
   } catch (error) {
-    console.error("Failed to set up Osmosis:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
+    console.error("Failed to set up Osmosis:", error);
     return;
   }
 
@@ -132,14 +126,7 @@ async function main() {
 
     console.log("Optimism setup complete");
   } catch (error) {
-    console.error("Failed to set up Optimism:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
+    console.error("Failed to set up Optimism:", error);
     return;
   }
 
@@ -150,14 +137,7 @@ async function main() {
     axelarBridge = new AxelarBridge(axelarConfig.environment as Environment);
     console.log("Axelar setup complete");
   } catch (error) {
-    console.error("Failed to set up Axelar:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
+    console.error("Failed to set up Axelar:", error);
     return;
   }
 
@@ -191,14 +171,7 @@ async function main() {
 
     console.log("Cross-chain setup complete");
   } catch (error) {
-    console.error("Failed to set up cross-chain functionality:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
+    console.error("Failed to set up cross-chain functionality:", error);
     return;
   }
 
@@ -215,23 +188,24 @@ async function main() {
       await osmosisAggregator.importDataToNeo4j(neo4jDriver, osmosisPools!);
       console.log("Osmosis pool data imported to Neo4j");
 
-      // Assume similar method exists for Optimism
-      // console.log("Importing Optimism pool data to Neo4j...");
-      // await optimismAggregator.importDataToNeo4j(neo4jDriver, optimismPools!);
-      // console.log("Optimism pool data imported to Neo4j");
+      console.log("Importing Optimism pool data to Neo4j...");
+      if ("importDataToNeo4j" in optimismAggregator) {
+        await (optimismAggregator as any).importDataToNeo4j(
+          neo4jDriver,
+          optimismPools!
+        );
+        console.log("Optimism pool data imported to Neo4j");
+      } else {
+        console.log(
+          "importDataToNeo4j method not implemented for OptimismAggregator. Skipping Optimism data import."
+        );
+        // TODO: Implement importDataToNeo4j method for OptimismAggregator
+      }
     } finally {
       await neo4jSession.close();
     }
   } catch (error) {
-    console.error("Failed to fetch and store pool data:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
-    return;
+    console.error("Failed to fetch and store pool data:", error);
   }
 
   // Example: Cross-chain transfer from Osmosis to Optimism
@@ -250,27 +224,48 @@ async function main() {
     );
     console.log("Cross-chain transfer result:", result);
 
-    // Example: Receive and swap on Optimism
-    console.log("Receiving and swapping on Optimism...");
-    const receivedAmount = "1000000"; // Assuming 1 USDC (6 decimals)
-    const finalToken = "OP";
-    const swapResult = await optimismCrossChain.receiveAndSwap(
-      "osmosis",
-      receivedAmount,
-      finalToken
-    );
-    console.log("Receive and swap result on Optimism:", swapResult);
-  } catch (error) {
-    console.error("Cross-chain operation failed:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
-  }
+    if (result.success) {
+      console.log(
+        "Cross-chain transfer initiated successfully. Transaction hash:",
+        result.txHash
+      );
 
+      // We don't have a direct way to get the received amount, so we'll use the original amount
+      // Note: This assumes a 1:1 conversion rate, which may not be accurate in practice
+      const estimatedReceivedAmount = new BigNumber(amount);
+
+      console.log(
+        "Estimated USDC amount to be received on Optimism:",
+        estimatedReceivedAmount.toString()
+      );
+
+      // Wait for some time to allow the cross-chain transfer to complete
+      // This is a placeholder. In a real scenario, you'd want to implement a way to check if the transfer is complete
+      console.log("Waiting for cross-chain transfer to complete...");
+      await new Promise((resolve) => setTimeout(resolve, 60000)); // Wait for 1 minute
+
+      // Now attempt to receive and swap on Optimism
+      console.log("Attempting to receive and swap on Optimism...");
+      const finalToken = "OP";
+      try {
+        const swapResult = await optimismCrossChain.receiveAndSwap(
+          "osmosis",
+          estimatedReceivedAmount.toString(),
+          finalToken
+        );
+        console.log("Receive and swap result on Optimism:", swapResult);
+      } catch (swapError) {
+        console.error("Failed to receive and swap on Optimism:", swapError);
+        console.log(
+          "The cross-chain transfer may not have completed yet. Please check your balance and try swapping manually later."
+        );
+      }
+    } else {
+      console.log("Cross-chain transfer failed to initiate.");
+    }
+  } catch (error) {
+    console.error("Cross-chain operation failed:", error);
+  }
   // Example: Query Optimism subgraph
   try {
     console.log("Querying Optimism subgraph...");
@@ -296,14 +291,7 @@ async function main() {
       subgraphResponse.data.data.pools
     );
   } catch (error) {
-    console.error("Subgraph query failed:");
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error(error);
-    }
+    console.error("Subgraph query failed:", error);
   }
 
   // Clean up
@@ -313,13 +301,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("An error occurred in the main function:");
-  if (error instanceof Error) {
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
-  } else {
-    console.error(error);
-  }
+  console.error("An error occurred in the main function:", error);
   process.exitCode = 1;
 });
